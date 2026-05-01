@@ -377,15 +377,22 @@ Live Alerts → Email / Microsoft Teams / PagerDuty
 
 <div align="center">
 
-**Extrenne** · Telecommunications Engineer
+**Eztrenne** · Telecommunications Engineer
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/luis-f-choque-paca-0b6324240/)
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Extrenne)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Eztrenne)
 
 *Feel free to reach out for questions, feedback or collaboration.*
 
 ---
 
-*Built with 💚 by Extrenne · Telecommunications Engineer*
+*Built with 💚 by Eztrenne · Telecommunications Engineer*
 
 </div>
+---
+---
+<div align="center">
+    *Luis Fernando Choque Paca*
+</div>
+---
+---
