@@ -291,52 +291,104 @@ YoY % = DIVIDE([YoY], [LY], 0)
 
 ## 🌍 Real World Application
 
-> This project was built in a fictional scenario, but the architecture and logic can be directly applied to a **real production environment** with minimal changes.
+> This project was built in a fictional scenario, but the architecture and logic can be directly applied to a **real production environment** with a fully automated pipeline.
+
+### How It Would Work in Production
+
+Instead of manually capturing traffic with Wireshark and exporting a static CSV, a real deployment would use **`tcpdump`** — a command-line packet capture tool available on any Linux server — to capture network traffic continuously and feed it into an automated pipeline.
+
+Here is the full production pipeline, step by step:
+
+---
+
+**Step 1 — Continuous Packet Capture with `tcpdump`**
+On the Linux server monitoring the network, `tcpdump` runs as a background service, capturing all incoming and outgoing packets and writing them to rotating log files:
+
+```bash
+# Capture all traffic on interface eth0 and write to a file every 5 minutes
+tcpdump -i eth0 -w /var/log/network/capture_%Y%m%d_%H%M.pcap \
+  -G 300 -z /scripts/process_capture.sh
+```
+
+No manual intervention — the system captures 24/7 automatically.
+
+---
+
+**Step 2 — Automated Cleaning & Processing with Python**
+Each time a new capture file is generated, a Python script runs automatically (triggered via `cron` or a file watcher) to:
+
+- Parse the raw packet data using `pyshark` or `scapy`
+- Clean and normalize the fields (fix malformed IPs, drop irrelevant columns)
+- Enrich each row with a **GeoIP lookup** to assign country per IP (using `geoip2` + MaxMind database)
+- Cross-reference source IPs against **threat intelligence APIs** (AbuseIPDB, Shodan) to flag malicious IPs automatically — no hardcoding needed
+- Apply the same star schema structure used in this project
+
+```bash
+# Cron job: run processing script every 5 minutes
+*/5 * * * * python3 /scripts/process_capture.py
+```
+
+---
+
+**Step 3 — Load into Snowflake**
+The processed and structured data is loaded into **Snowflake** — a cloud data warehouse — using Python's `snowflake-connector`:
+
+```python
+import snowflake.connector
+
+conn = snowflake.connector.connect(
+    user='analyst',
+    password='...',
+    account='your_account',
+    warehouse='COMPUTE_WH',
+    database='NETWORK_DB',
+    schema='PUBLIC'
+)
+
+# Load new rows into the fact table
+conn.cursor().execute("COPY INTO FACT_TRAFIC FROM @my_stage/processed/")
+```
+
+Snowflake handles the scalability — millions of packets per day with no performance issues.
+
+---
+
+**Step 4 — Power BI with Live Refresh**
+Power BI connects to Snowflake via **DirectQuery** or a **scheduled refresh** (every 15–30 minutes depending on requirements). The dashboard always shows up-to-date data without anyone touching it.
+
+When a KPI turns red — because `tcpdump` just captured a real ICMP Flood or TCP Flood — the on-call analyst sees it immediately.
+
+---
+
+### Full Automated Pipeline
+
+```
+Linux Server (tcpdump)
+        │  captures packets 24/7
+        ▼
+Python Script (pyshark + pandas)
+        │  cleans, enriches, structures
+        ▼
+Snowflake (cloud data warehouse)
+        │  stores structured fact & dimension tables
+        ▼
+Power BI (DirectQuery / Scheduled Refresh)
+        │  live dashboard with KPI alerts
+        ▼
+Analyst sees red KPI → investigates attack
+```
 
 ### Fictional vs Real — Component Mapping
 
-| This Project | Real World Equivalent |
+| This Project (Fictional) | Real World Equivalent |
 |---|---|
-| Static CSV from Wireshark | Live feed from a **SIEM** (Splunk, Microsoft Sentinel) |
-| Manually assigned dates | Real timestamps from network logs |
-| Simulated attack rows | Actual anomalies detected by IDS/IPS systems |
-| Hardcoded malicious IPs | **Threat intelligence feeds** (AbuseIPDB, VirusTotal API) |
-| Python script for enrichment | **Automated ETL pipeline** (Azure Data Factory, Apache Airflow) |
-| Power BI manual refresh | **DirectQuery** or **scheduled refresh** to live database |
-| Static country mapping | **GeoIP lookup API** (MaxMind, ip-api.com) |
-| Power Query star schema | Dedicated **data warehouse** (Azure Synapse, Snowflake) |
-
-### Automated Real-Time Pipeline
-
-```
-Network Traffic
-      │
-      ▼
-Packet Capture (Wireshark / NetFlow / Zeek)
-      │
-      ▼
-Ingestion Layer (Python / Azure Data Factory / Kafka)
-      │
-      ▼
-Storage (Azure SQL / PostgreSQL / Data Lake)
-      │
-      ▼
-Transformation (dbt / Power Query / Python)
-      │
-      ▼
-Power BI — DirectQuery / Scheduled Refresh
-      │
-      ▼
-Live Alerts → Email / Microsoft Teams / PagerDuty
-```
-
-### Key Production Improvements
-
-- **Real-time alerting** — Power BI integrated with Microsoft Teams or email to push notifications automatically when a KPI threshold is exceeded, no manual monitoring needed
-- **Automated threat intelligence** — source IPs cross-referenced against live databases (AbuseIPDB, Shodan) to flag malicious IPs dynamically instead of hardcoding them
-- **ML-based anomaly detection** — models like Isolation Forest or LSTM to catch unusual traffic patterns that don't fit simple threshold rules
-- **Role-based access control** — Power BI workspace with different views for security analysts, managers and executives
-- **Scalability** — swap the CSV for a proper database (Azure SQL, PostgreSQL) to handle millions of packets per day
+| Wireshark manual export | `tcpdump` running as a Linux background service |
+| Python script run once | Python script triggered by `cron` every 5 minutes |
+| Hardcoded malicious IPs | AbuseIPDB / Shodan API queried automatically per IP |
+| Static country mapping | MaxMind GeoIP2 database lookup per IP |
+| CSV flat file | Snowflake cloud data warehouse |
+| Power BI manual refresh | Power BI DirectQuery or scheduled refresh |
+| Static 4-year dataset | Continuously growing live dataset |
 
 ---
 
@@ -377,7 +429,7 @@ Live Alerts → Email / Microsoft Teams / PagerDuty
 
 <div align="center">
 
-**Eztrenne** · Telecommunications Engineer
+**Luis Choque** · Telecommunications Engineer
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/luis-f-choque-paca-0b6324240/)
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Eztrenne)
@@ -386,13 +438,14 @@ Live Alerts → Email / Microsoft Teams / PagerDuty
 
 ---
 
-*Built with 💚 by Eztrenne · Telecommunications Engineer*
+*Built with 💙 by Eztrenne · Telecommunications Engineer*
 
 </div>
+
 ---
----
+
 <div align="center">
-    *Luis Fernando Choque Paca*
+
+<sub>© 2026 <strong>Luis Fernando Choque Paca</strong> </sub>
+
 </div>
----
----
